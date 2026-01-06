@@ -45,7 +45,7 @@ def check_ACC():
     gaugeinfo = pd.read_csv('/data/zry/siteinfo/gauge_info.csv', index_col=0)
     lons = gaugeinfo.loc[gauge.index, 'lon'].values
     lats = gaugeinfo.loc[gauge.index, 'lat'].values
-    lonll, latll = 116.0, 40.0
+    lonll, latll = 116.5, 40.0
     AREA = [lonll, lonll+WINDOW_SIZE*RESOLUTION, latll, latll+WINDOW_SIZE*RESOLUTION]
 
 
@@ -53,10 +53,10 @@ def check_ACC():
     ax = ax.flatten()
     for i, fp in enumerate(ls_fp):
         data = np.load(fp)
-        acc = data['acc'].squeeze()
+        acc = data['count_vali'].squeeze()
         radarname = os.path.basename(fp).split('_')[0]
-        et.RADAR(acc, 'acc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, area=MOSAIC_AREA, ax=ax[i])#, scatters=[lons, lats, gauge.values])
-        et.RADAR(acc, 'acc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, area=AREA, ax=ax[i+4])#, scatters=[lons, lats, gauge.values])
+        et.RADAR(acc/10, 'cc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, area=MOSAIC_AREA, ax=ax[i])#, scatters=[lons, lats, gauge.values])
+        et.RADAR(acc/10, 'cc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, area=AREA, ax=ax[i+4])#, scatters=[lons, lats, gauge.values])
         # et.load_shapefile(ax=ax[i])
         ax[i].set_xticks(np.arange(115.5, 117.6, 0.5))
         ax[i].set_yticks(np.arange(39.5, 41.2, 0.5))
@@ -67,7 +67,7 @@ def check_ACC():
                         linewidth=1, edgecolor='r', facecolor='none')        
         ax[i].add_patch(rec)
 
-    fig.savefig(f'./dataset/check_files-ACC1H-201907221600-另一个-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
+    fig.savefig(f'./dataset/check_files-count-201907221600-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
 
 def collect_files():
     rootdir = '/data/zry/BJradar_processed/'
@@ -109,38 +109,38 @@ def collect_files():
             fp_new = os.path.join(dirname, filename)
             info = '过去1h的累计降水量(mm), 数据为hsr数据, QPE方法为rarz\nacc: 累计降水量\ncount_vali: 有效文件个数, 因为有时候缺测, 不是每个小时都有10个观测(6min间隔)'
             # print(info)
-            if os.path.exists(fp_new):
-                print(f'File exists: {fp_new}, skip.')
-            else:
-                ### get filepaths of past 1 hour
-                ls_fp = df.loc[timestamp:timestamp+pd.Timedelta(minutes=59), radarname].to_list()
-                if len(ls_fp) < 5:
-                    continue
+            # if os.path.exists(fp_new):
+            #     print(f'File exists: {fp_new}, skip.')
+            #     continue
 
-                ### accumulate
-                count_vali = 0
-                for fp in ls_fp:
-                    if fp != 'nodata':
-                        data = np.load(fp)
-                        rr = data['rr_ra_rz'].squeeze()
-                        if count_vali == 0:
-                            acc = rr * 6/60  # mm/h to mm/6min
-                        else:
-                            acc += rr * 6/60  # mm/h to mm/6min
-                        count_vali += 1
-                
-                ### save
-                if count_vali == 0:
-                    acc = np.zeros((360,1000))*1.0
-                    count_vali_arr = np.full_like(acc, count_vali)
+            ### get filepaths of past 1 hour
+            ls_fp = df.loc[timestamp:timestamp+pd.Timedelta(minutes=59), radarname].to_list()
+            if len(ls_fp) < 5:
+                continue
+
+            ### accumulate
+            count = 0
+            for fp in ls_fp:
+                ### 如果文件不存在, 则视为无降水
+                if fp != 'nodata':
+                    data = np.load(fp)
+                    rr = data['rr_ra_rz'].squeeze()
                 else:
-                    count_vali_arr = np.full_like(acc, count_vali)
-
-                np.savez_compressed(fp_new, info=info, acc=acc, count_vali=count_vali_arr)
+                    rr = np.zeros((360,1000))*1.0  # nodata as zero rainfall
+                
+                if count == 0:
+                    acc = rr * 6/60  # mm/h to mm/6min
+                    count_vali = (rr > 0).astype(np.int32) # 统计有效降水格点数
+                else:
+                    acc += rr * 6/60  # mm/h to mm/6min
+                    count_vali += (rr > 0).astype(np.int32)
+                count += 1
+            
+            np.savez_compressed(fp_new, info=info, acc=acc, count_vali=count_vali)
             df_acc.loc[timestamp_end, radarname] = fp_new
     df_acc = df_acc.sort_index()
     df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2019.csv')
 
 if __name__ == '__main__':
-    # collect_files()
+    collect_files()
     check_ACC()
