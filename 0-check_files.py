@@ -38,7 +38,7 @@ def check_QC():
 
 def check_ACC():
     df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
-    timestamp = pd.to_datetime('2019-07-29 08:00')
+    timestamp = pd.to_datetime('2019-07-22 18:00')
     ls_fp = df.loc[timestamp].to_list()
 
     gauge = pd.read_csv('/data/zry/beijing/gauge/gauge_all.csv', index_col=0, parse_dates=True).loc[timestamp]
@@ -48,10 +48,12 @@ def check_ACC():
     lonll, latll = 116.5, 40.0
     AREA = [lonll, lonll+WINDOW_SIZE*RESOLUTION, latll, latll+WINDOW_SIZE*RESOLUTION]
 
+    grid_gauge = np.load(ls_fp[-1])['grid_data'].squeeze()
+    loc = grid_gauge > 0
 
     fig, ax = plt.subplots(2,5, figsize=(40, 16), subplot_kw={'projection': ccrs.PlateCarree()})
     ax = ax.flatten()
-    for i, fp in enumerate(ls_fp):
+    for i, fp in enumerate(ls_fp[:-1]):
         data = np.load(fp)
         acc = data['acc'].squeeze()
         radarname = os.path.basename(fp).split('_')[0]
@@ -66,6 +68,9 @@ def check_ACC():
         rec = plt.Rectangle((LONLL, LATLL), 1024*RESOLUTION, 1024*RESOLUTION,
                         linewidth=1, edgecolor='r', facecolor='none')        
         ax[i].add_patch(rec)
+        cmap, norm, _, _ = et.colorbar('acc')
+        ax[i].scatter(GRID_LON[loc], GRID_LAT[loc], s=20, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
+        ax[i+5].scatter(GRID_LON[loc], GRID_LAT[loc], s=20, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
 
     fig.savefig(f'./dataset/check_files-ACC1H-{timestamp.strftime("%Y%m%d%H%M")}-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
 
@@ -117,9 +122,10 @@ def collect_files():
             info += 'num_file: 有效文件个数, 因为有时候缺测, 不是每个小时都有10个观测(6min间隔)\n'
             info += 'num_rain: 每个格点降水>0的次数\n'
             # print(info)
-            # if os.path.exists(fp_new):
-            #     print(f'File exists: {fp_new}, skip.')
-            #     continue
+            if os.path.exists(fp_new):
+                print(f'File exists: {fp_new}, skip.')
+                df_acc.loc[timestamp_end, radarname] = fp_new
+                continue
 
             ### get filepaths of past 1 hour
             ls_fp = df.loc[timestamp:timestamp+pd.Timedelta(minutes=59), radarname].to_list()
@@ -153,8 +159,14 @@ def collect_files():
             np.savez_compressed(fp_new, info=info, acc=acc, num_rain=num_rain, num_file=num_file)
             df_acc.loc[timestamp_end, radarname] = fp_new
     df_acc = df_acc.sort_index()
+
+    for timestamp in df_acc.index:
+        timestamp_str = timestamp.strftime('%Y%m%d%H%M')
+        date = timestamp.strftime('%Y%m%d')
+        fp = f'/data/zry/BJradar_processed/{date}/ACC1H-hsr/Merge_DL-0.001deg/gauge_{timestamp_str}.npz'
+        df_acc.loc[timestamp, 'gauge'] = fp
     df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2019.csv')
 
 if __name__ == '__main__':
-    collect_files()
+    # collect_files()
     check_ACC()
