@@ -36,10 +36,7 @@ def check_QC():
     et.RADAR(newref, 'ref', *BJXSY).ppi(1, ax=ax[1])
     fig.savefig('./dataset/check_files-ref-201907281900.png', dpi=300)
 
-def check_ACC():
-    df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
-    timestamp = pd.to_datetime('2019-07-22 18:00')
-    ls_fp = df.loc[timestamp].to_list()
+def check_ACC(ls_fp, timestamp):
 
     gauge = pd.read_csv('/data/zry/beijing/gauge/gauge_all.csv', index_col=0, parse_dates=True).loc[timestamp]
     gaugeinfo = pd.read_csv('/data/zry/siteinfo/gauge_info.csv', index_col=0)
@@ -70,7 +67,7 @@ def check_ACC():
         ax[i].add_patch(rec)
         cmap, norm, _, _ = et.colorbar('acc')
         ax[i].scatter(GRID_LON[loc], GRID_LAT[loc], s=20, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
-        ax[i+5].scatter(GRID_LON[loc], GRID_LAT[loc], s=20, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
+        ax[i+5].scatter(GRID_LON[loc], GRID_LAT[loc], s=100, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
 
     fig.savefig(f'./dataset/check_files-ACC1H-{timestamp.strftime("%Y%m%d%H%M")}-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
 
@@ -129,9 +126,6 @@ def collect_files():
 
             ### get filepaths of past 1 hour
             ls_fp = df.loc[timestamp:timestamp+pd.Timedelta(minutes=59), radarname].to_list()
-            if len(ls_fp) < 5:
-                continue
-
             ### accumulate
             init = True
             num_file = 0
@@ -169,4 +163,8 @@ def collect_files():
 
 if __name__ == '__main__':
     # collect_files()
-    check_ACC()
+    df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
+    for hour in range(15, 22):
+        timestamp = pd.to_datetime(f'2019-07-22 {hour}:00')
+        ls_fp = df.loc[timestamp].to_list()
+        check_ACC(ls_fp, timestamp)
