@@ -1,16 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Modular UNet for radar-fusion weight learning
-Input : (B, 25, H, W)  where 25 = 5 radars * 5 vars
-Output: weights (B, K, H, W) and fused rainfall (B, 1, H, W)
-
-Default channel layout per radar (repeat K times):
-    [R_1h, file_cnt_1h, rain_cnt_1h, hgt_rel_ground, dist]
-So for radar k (0-based), its base index = k*5.
-
-You can change layout by editing RadarChannelSpec below.
-"""
-
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -207,14 +194,16 @@ class RadarFusionWeightNet(nn.Module):
         n_res: int = 1,
         norm: str = "nonorm",
         act: str = "relu",
-        # filecnt_gate: bool = True,
-        # gate_threshold: float = 0.0,   # file_cnt <= threshold -> treat as unavailable
-        # gate_logits_penalty: float = 1e4,  # large number to suppress logits
+        filecnt_mask: bool = True,
+        filecnt_threshold: float = 0.8,   # file_cnt <= threshold -> treat as unavailable
+        filecnt_logits_penalty: float = 1e9,  # large number to suppress logits
     ):
         super().__init__()
-        # self.filecnt_gate = filecnt_gate
-        # self.gate_threshold = gate_threshold
-        # self.gate_logits_penalty = gate_logits_penalty
+        self.filecnt_mask = filecnt_mask
+        self.filecnt_threshold = filecnt_threshold
+        self.filecnt_logits_penalty = filecnt_logits_penalty
+        if self.filecnt_mask:
+            print(f"filecnt masking is ENABLED with threshold={filecnt_threshold} and penalty={filecnt_logits_penalty:.1e}")
 
         self.backbone = UNetBackbone(
             in_ch=in_ch,
@@ -239,11 +228,11 @@ class RadarFusionWeightNet(nn.Module):
         feat = self.backbone(x)
         logits = self.head(feat)  # (B,K,H,W)
 
-        # # Optional gating: if a radar has file_count==0 in a pixel/patch-hour, suppress its logits
-        # if self.filecnt_gate:
-        #     filecnt = torch.index_select(x, dim=1, index=self.filecnt_idx)  # (B,K,H,W)
-        #     unavailable = (filecnt <= self.gate_threshold).to(logits.dtype)  # 1 means unavailable
-        #     logits = logits - unavailable * self.gate_logits_penalty
+        # Optional gating: if a radar has file_count==0 in a pixel/patch-hour, suppress its logits
+        if self.filecnt_mask:
+            filecnt = x[:,[1,6,11,16,21]]  # (B,K,H,W)
+            unavailable = (filecnt <= self.filecnt_threshold).to(logits.dtype)  # 1 means unavailable
+            logits = logits - unavailable * self.filecnt_logits_penalty
 
         weights = F.softmax(logits, dim=1)  # along radar dimension
 
@@ -289,7 +278,7 @@ def masked_gauge_loss(
 # 6) quick sanity check
 # -------------------------
 if __name__ == "__main__":
-    model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu")
+    model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",)
 
     x = torch.randn(2, 25, 256, 256)
     weights, r_hat, logits = model(x)
