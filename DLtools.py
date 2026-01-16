@@ -126,6 +126,8 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
     model.train()
     total_loss = 0.0
     n = 0
+    ls_pred = []
+    ls_true = []
     for x, gauge_grid in loader:
         x = x.to(device)                                  # (B,25,256,256)
         gauge_grid = gauge_grid.to(device)                # (B,256,256)
@@ -143,6 +145,8 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
             continue
         weights, r_hat, logits = model(x)                 # r_hat: (B,1,256,256)
         # r_hat = r_hat.squeeze(1)                          # -> (B,256,256)
+        ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
+        ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
         loss = loss_func(r_hat, gauge_grid, gauge_mask)   # 你的loss若要求B1HW就别squeeze
         loss.backward()
@@ -151,13 +155,17 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
         bs = x.size(0)
         total_loss += loss.item() * bs
         n += bs
-    return total_loss / max(n, 1)
+    ls_pred = np.concatenate(ls_pred, axis=0)
+    ls_true = np.concatenate(ls_true, axis=0)
+    return total_loss / max(n, 1), ls_true, ls_pred
 
 @torch.no_grad()
 def eval_one_epoch(model, loader, loss_func, device):
     model.eval()
     total_loss = 0.0
     n = 0
+    ls_pred = []
+    ls_true = []
     for x, gauge_grid in loader:
         x = x.to(device)
         gauge_grid = gauge_grid.to(device)
@@ -168,10 +176,14 @@ def eval_one_epoch(model, loader, loss_func, device):
 
         weights, r_hat, logits = model(x)
         # r_hat = r_hat.squeeze(1)
+        ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
+        ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
         loss = loss_func(r_hat, gauge_grid, gauge_mask)
         bs = x.size(0)
         total_loss += loss.item() * bs
         n += bs
-    return total_loss / max(n, 1)
+    ls_pred = np.concatenate(ls_pred, axis=0)
+    ls_true = np.concatenate(ls_true, axis=0)
+    return total_loss / max(n, 1), ls_true, ls_pred
 
