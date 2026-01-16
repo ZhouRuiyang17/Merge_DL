@@ -55,6 +55,12 @@ def generate_dataset_and_index(out_dir):
                     num_rain = data['num_rain']
                     ratio_file = num_file / 10 # 按照6min扫描间隔, 每小时应该有10个文件
                     ratio_rain = num_rain / num_file # 在有文件的地方, 多少比例有雨
+                    mask_invalid = ~(np.isfinite(acc) & np.isfinite(ratio_file) & np.isfinite(ratio_rain))
+                    if mask_invalid.any():
+                        print(f"Warning: 发现无效值 at {radarname} {timestamp}")
+                    acc[mask_invalid] = 0.0
+                    ratio_file[mask_invalid] = 0.0
+                    ratio_rain[mask_invalid] = 0.0
 
                     gridinfo = dict_gridinfo[radarname]
                     grid_agl = gridinfo['grid_AGL']/1000  # m to km
@@ -101,8 +107,14 @@ def generate_dataset_and_index(out_dir):
                     all_griddata.append(a_radar)
                 elif 'gauge' in col:
                     gauge = np.load(df.loc[timestamp, col])['grid_data'].squeeze()  # (H, W)
+                    mask_invalid = ~np.isfinite(gauge) | (gauge > 1000) # 无效点: NaN或Inf或大于1000mm, 因为气象局用99999标记无效
+                    if mask_invalid.any():
+                        print(f"Warning: 发现无效值 at gauge {timestamp}")
+                    gauge[mask_invalid] = 0.0
                     all_griddata.append(gauge[np.newaxis, ...])  # (1, H, W)
             all_griddata = np.concatenate(all_griddata, axis=0)  # (N_radars*5+1, H, W)
+            
+            
             ### 对该时间的所有雷达和雨量站数据, 进行切片
             for idlon in range(0, 1024, int(WINDOW_SIZE/2)):
                 for idlat in range(0, 1024, int(WINDOW_SIZE/2)):
