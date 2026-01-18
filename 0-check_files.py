@@ -20,21 +20,21 @@ plt.rcParams['legend.fontsize'] = 10  # 图例大小
 
 def check_QC():
     oldfile = '/data/zry/BJradar_processed/radarsys-out/20180716/BJXFS/BJXFS.20180716.003600_HSR.npz'
-    newfile = '/data/zry/BJradar_processed/radarsys-out/20180716/QC/BJXFS/BJXFS_20180716003600.npz'
+    newfile = '/data/zry/BJradar_processed/radarsys-out/20180716/QPE-hsr/BJXFS/BJXFS_20180716003600.npz'
 
     olddata = np.load(oldfile)
     newdata = np.load(newfile)
 
-    oldref = olddata['data'][0].squeeze()
-    newref = newdata['ref'].squeeze()
+    oldref = olddata['data'][-1].squeeze()
+    newref = newdata['rr_ra_rz'].squeeze()
 
     print('Old data shape:', oldref.shape)
     print('New data shape:', newref.shape)
 
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-    et.RADAR(oldref, 'ref', *BJXFS, eles=[0.5]).ppi(0, ax=ax[0])
-    et.RADAR(newref, 'ref', *BJXFS).ppi(1, ax=ax[1])
-    fig.savefig('./dataset/check_files-ref-201807160036-BJXFS.png', dpi=300)
+    et.RADAR(oldref, 'rr', *BJXFS, eles=[0.5]).ppi(0, ax=ax[0])
+    et.RADAR(newref, 'rr', *BJXFS, eles=[0.5]).ppi(0, ax=ax[1])
+    fig.savefig('./dataset/check_files-rr-20180716003600-BJXFS.png', dpi=300)
 
 def check_ACC(ls_fp, timestamp):
 
