@@ -25,7 +25,7 @@ print(f"Using device: {device}")
 # ========================================
 from model import RadarFusionWeightNet
 model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",).to(device)
-MODELPATH = f'./models/{datetime.datetime.now().strftime("%Y%m%d_%H%M")}/'
+MODELPATH = f'./models/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}/'
 os.makedirs(MODELPATH, exist_ok=True)
 with open(os.path.join(MODELPATH, "info.txt"), "w") as f:
     f.write('Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"\n')
@@ -64,7 +64,7 @@ print(f"创建数据加载器用时: {(datetime.datetime.now()-t1).total_seconds
 best = 1e18
 ls_tr_loss = []
 ls_va_loss = []
-for epoch in range(1, 51):
+for epoch in range(1, 201):
     tr, ls_true_tr, ls_pred_tr = train_one_epoch(model, train_loader, opmizer, loss_func, device)
     va, ls_true_va, ls_pred_va = eval_one_epoch(model, val_loader, loss_func, device)
     print(f"Epoch {epoch:03d} | train={tr:.6f} | val={va:.6f}")

@@ -1,0 +1,3 @@
+Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"
+Loss: MSE Loss
+Optimizer: Adam, lr=1e-4
