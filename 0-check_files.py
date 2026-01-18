@@ -19,8 +19,8 @@ plt.rcParams['axes.titlesize'] = 12   # 标题大小
 plt.rcParams['legend.fontsize'] = 10  # 图例大小
 
 def check_QC():
-    oldfile = '/data/zry/BJradar_processed/20190728/BJXSY/BJXSY.20190728.190000_HSR.npz'
-    newfile = '/data/zry/BJradar_processed/20190728/QC/BJXSY/BJXSY_20190728190000.npz'
+    oldfile = '/data/zry/BJradar_processed/radarsys-out/20180716/BJXFS/BJXFS.20180716.003600_HSR.npz'
+    newfile = '/data/zry/BJradar_processed/radarsys-out/20180716/QC/BJXFS/BJXFS_20180716003600.npz'
 
     olddata = np.load(oldfile)
     newdata = np.load(newfile)
@@ -32,9 +32,9 @@ def check_QC():
     print('New data shape:', newref.shape)
 
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-    et.RADAR(oldref, 'ref', *BJXSY, eles=[0.5]).ppi(0, ax=ax[0])
-    et.RADAR(newref, 'ref', *BJXSY).ppi(1, ax=ax[1])
-    fig.savefig('./dataset/check_files-ref-201907281900.png', dpi=300)
+    et.RADAR(oldref, 'ref', *BJXFS, eles=[0.5]).ppi(0, ax=ax[0])
+    et.RADAR(newref, 'ref', *BJXFS).ppi(1, ax=ax[1])
+    fig.savefig('./dataset/check_files-ref-201807160036-BJXFS.png', dpi=300)
 
 def check_ACC(ls_fp, timestamp):
 
@@ -162,9 +162,10 @@ def collect_files():
     df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2019.csv')
 
 if __name__ == '__main__':
+    check_QC()
     # collect_files()
-    df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
-    for hour in range(15, 22):
-        timestamp = pd.to_datetime(f'2019-07-22 {hour}:00')
-        ls_fp = df.loc[timestamp].to_list()
-        check_ACC(ls_fp, timestamp)
+    # df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
+    # for hour in range(15, 22):
+    #     timestamp = pd.to_datetime(f'2019-07-22 {hour}:00')
+    #     ls_fp = df.loc[timestamp].to_list()
+    #     check_ACC(ls_fp, timestamp)
