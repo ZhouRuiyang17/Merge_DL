@@ -71,12 +71,34 @@ def check_ACC(ls_fp, timestamp):
 
     fig.savefig(f'./dataset/check_files-ACC1H-{timestamp.strftime("%Y%m%d%H%M")}-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
 
+def safe_load(fp, n_gt):
+    try:
+        with np.load(fp) as data:
+            if 'rr_ra_rz' in data:
+                rr = data['rr_ra_rz'].squeeze()
+            elif 'rr_ref' in data:
+                rr = data['rr_ref'].squeeze()
+            else:
+                raise KeyError("rr_ra_rz / rr_ref not found")
+        return rr
+
+    except Exception as e:
+        print(f"[ERROR] file = {fp}")
+        print(f"        type = {type(e).__name__}")
+        print(f"        msg  = {e}")
+        # 如需完整栈信息，打开下面一行
+        # traceback.print_exc()
+
+        rr = np.zeros((360, n_gt), dtype=np.float32)
+        return rr
 def collect_files():
-    rootdir = '/data/zry/BJradar_processed/'
+    rootdir = '/data/zry/BJradar_processed/radarsys-out/'
     columns = ['BJXFS', 'BJXCP', 'BJXSY', 'BJXTZ', 'Z9010']
     # df = pd.DataFrame(columns=columns)
     # for root, dirs, files in os.walk(rootdir):
-    #     if not ('2019' in root and 'QPE-hsr' in root):
+    #     if not ('QPE-hsr' in root):
+    #         continue
+    #     if not ('2017' in root or '2018' in root):
     #         continue
     #     for file in files:
     #         if file.endswith('.npz'):
@@ -89,17 +111,28 @@ def collect_files():
     #                 df.loc[timestamp, radarname] = filepath
     # df = df.sort_index()
     # df = df.fillna('nodata')
-    # df.to_csv('./dataset/filelist-QPE-hsr-2019.csv')
-    df = pd.read_csv('./dataset/filelist-QPE-hsr-2019.csv', index_col=0, parse_dates=True)
+    # df.to_csv('./dataset/filelist-QPE-hsr-2017_2018.csv')
+    # return 0
+    df = pd.read_csv('./dataset/filelist-QPE-hsr-2017_2018.csv', index_col=0, parse_dates=True)
     df = df.fillna('nodata')
 
     df_acc = pd.DataFrame(columns=columns)
     time_index = pd.date_range(
-                    start="2019-07-01 00:00",
-                    end="2019-09-30 23:00",
+                    start="2017-05-01 00:00",
+                    end="2018-10-30 23:00",
                     freq="H"
                 )
     for timestamp in time_index:
+        date_str = timestamp.strftime('%Y%m%d')
+        timestamp_end = timestamp + pd.Timedelta(hours=1)
+        df_slice = df.loc[timestamp:timestamp+pd.Timedelta(minutes=59)]
+        if df_slice.empty:
+            print(f'No data for time: {timestamp}, skip.')
+            continue
+        if df_slice.eq('nodata').all().all():
+            print(f'All data is \'nodata\' for time: {timestamp}, skip.')
+            continue
+
         for radarname in columns:
             if 'BJX' in radarname:
                 n_gt = 1000
@@ -107,11 +140,8 @@ def collect_files():
                 n_gt = 460
 
             ### prepare filepath
-            date_str = timestamp.strftime('%Y%m%d')
-            dirname = f'/data/zry/BJradar_processed/{date_str}/ACC1H-hsr/{radarname}/'
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            timestamp_end = timestamp + pd.Timedelta(hours=1)
+            dirname = f'/data/zry/BJradar_processed/radarsys-out/{date_str}/ACC1H-hsr/{radarname}/'
+            os.makedirs(dirname, exist_ok=True)
             filename = f'{radarname}_{timestamp_end.strftime("%Y%m%d%H%M")}.npz'
             fp_new = os.path.join(dirname, filename)
             info = '过去1h的累计降水量(mm), 数据为hsr数据, QPE方法为rarz\n'
@@ -133,11 +163,7 @@ def collect_files():
                 ### 如果文件不存在, 则视为无降水
                 if fp != 'nodata':
                     num_file += 1
-                    data = np.load(fp)
-                    if 'rr_ra_rz' in data:
-                        rr = data['rr_ra_rz'].squeeze()
-                    elif 'rr_ref' in data:
-                        rr = data['rr_ref'].squeeze()
+                    rr = safe_load(fp, n_gt)
                 else:
                     rr = np.zeros((360,n_gt))*1.0  # nodata as zero rainfall
                 
@@ -157,13 +183,13 @@ def collect_files():
     for timestamp in df_acc.index:
         timestamp_str = timestamp.strftime('%Y%m%d%H%M')
         date = timestamp.strftime('%Y%m%d')
-        fp = f'/data/zry/BJradar_processed/{date}/ACC1H-hsr/Merge_DL-0.001deg/gauge_{timestamp_str}.npz'
+        fp = f'/data/zry/BJradar_processed/radarsys-out/{date}/ACC1H-hsr/Merge_DL-0.001deg/gauge_{timestamp_str}.npz'
         df_acc.loc[timestamp, 'gauge'] = fp
-    df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2019.csv')
+    df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2017_2018.csv')
 
 if __name__ == '__main__':
-    check_QC()
-    # collect_files()
+    # check_QC()
+    collect_files()
     # df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
     # for hour in range(15, 22):
     #     timestamp = pd.to_datetime(f'2019-07-22 {hour}:00')
