@@ -103,9 +103,23 @@ class RadarPatchDataset(Dataset):
         )
     
 
-def build_concat_dataset(dataset_dir="dataset_files", require_gauge=True):
+def build_concat_dataset(dataset_dir="dataset_files", require_gauge=True, task='2019no09'):
+    """
+    task 可选：
+      - '2019': 只用2019年的数据
+      - '1718': 只用2017和2018年的数据
+      - '2019no09': 用2019年的数据，但不含09月
+      - 其他: 全部数据
+    """
     files = sorted(os.listdir(dataset_dir))
-    npys = [f for f in files if f.startswith("dataset-") and f.endswith(".npy")]
+    if task == '2019':
+        npys = [f for f in files if f.startswith("dataset-") and f.endswith(".npy") and '2019' in f] # 2019年的数据
+    elif task == '1718':
+        npys = [f for f in files if f.startswith("dataset-") and f.endswith(".npy") and '2019' not in f] # 非2019年的数据
+    elif task == '2019no09':
+        npys = [f for f in files if f.startswith("dataset-") and f.endswith(".npy") and '201909' not in f and '2019' in f] # 2019, 但不含09月
+    else:
+        npys = [f for f in files if f.startswith("dataset-") and f.endswith(".npy")]
     datasets = []
     for npy in npys:
         tag = npy.replace("dataset-", "").replace(".npy", "")

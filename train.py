@@ -20,6 +20,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
+
 # ========================================
 # Module: 加载模型
 # ========================================
@@ -27,16 +28,23 @@ from model import RadarFusionWeightNet
 model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",).to(device)
 MODELPATH = f'./models/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}/'
 os.makedirs(MODELPATH, exist_ok=True)
-with open(os.path.join(MODELPATH, "info.txt"), "w") as f:
-    f.write('Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"\n')
-    f.write('Loss: MSE Loss\n')
-    f.write('Optimizer: Adam, lr=1e-4\n')
+import logging
+logging.basicConfig(
+    filename=f'{MODELPATH}/main.log',                  # 日志文件名
+    level=logging.INFO,                        # 记录 INFO 及以上级别的日志
+    format='%(asctime)s---%(message)s',        # 日志格式
+    datefmt='%Y-%m-%d %H:%M:%S'                # 时间格式
+)
+logging.info('Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"')
+
 # ========================================
 # Module: 优化器和损失函数
 # ========================================
 opmizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+logging.info('Optimizer: Adam, lr=1e-4')
 from DLtools import MaskedMSELoss
 loss_func = MaskedMSELoss()
+logging.info('Loss: MSE Loss')
 
 # ========================================
 # Module: 加载数据集
@@ -44,9 +52,10 @@ loss_func = MaskedMSELoss()
 from DLtools import build_concat_dataset, train_one_epoch, eval_one_epoch
 
 t1 = datetime.datetime.now()
-dataset = build_concat_dataset("dataset_files", require_gauge=True)
-print(f"数据集样本数: {len(dataset)}")
-print(f"加载数据集用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
+dataset = build_concat_dataset("dataset_files", require_gauge=False, task='1718')
+logging.info("使用数据集: 2017和2018年的数据, 不要求下雨")
+logging.info(f"数据集样本数: {len(dataset)}")
+logging.info(f"加载数据集用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
 
 # 简单随机划分（你后面要 LOEO 就换成按事件分片）
 n_total = len(dataset)
@@ -54,12 +63,12 @@ n_val = int(0.1 * n_total)
 n_train = n_total - n_val
 t1 = datetime.datetime.now()
 train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(42))
-print(f"划分数据集用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
+logging.info(f"划分数据集用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
 
 t1 = datetime.datetime.now()
 train_loader = DataLoader(train_set, batch_size=8, shuffle=True, num_workers=4, pin_memory=True)
 val_loader   = DataLoader(val_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
-print(f"创建数据加载器用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
+logging.info(f"创建数据加载器用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
 
 best = 1e18
 ls_tr_loss = []
