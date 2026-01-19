@@ -28,8 +28,8 @@ def generate_dataset_and_index(out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
     ### 读取数据目录
-    df = pd.read_csv('dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
-    # df = df.loc['2019-7-22 15:00':'2019-7-22 22:00']
+    df = pd.read_csv('dataset/filelist-ACC1H-hsr-2017_2018.csv', index_col=0, parse_dates=True)
+    # df = df.loc['2017-8-22 10:00':'2017-8-22 11:00']
     n_dates = df.index.normalize().nunique()
     dates = df.index.normalize().unique()
 
@@ -85,7 +85,9 @@ def generate_dataset_and_index(out_dir):
                     ratio_rain_grid = np.zeros_like(grid_az, dtype=np.float32)
                     ratio_rain_grid[~loc] = ratio_rain[idaz, idgt]
 
-                    """ fig, ax = plt.subplots(3, 3, figsize=(15,15), subplot_kw={'projection': ccrs.PlateCarree()})
+                    """ from utils.information import area_Merge_DL
+                    MOSAIC_AREA = area_Merge_DL()[0]
+                    fig, ax = plt.subplots(3, 3, figsize=(15,15), subplot_kw={'projection': ccrs.PlateCarree()})
                     ax = ax.flatten()
                     et.RADAR(acc,'acc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, ax=ax[0], area=MOSAIC_AREA)
                     et.RADAR(ratio_file,'cc', *BJ_RADAR_DICT[radarname], eles=[0.5]).ppi_wgs(0, ax=ax[1], area=MOSAIC_AREA)
@@ -101,7 +103,8 @@ def generate_dataset_and_index(out_dir):
                     ax[7].pcolormesh(grid_lon, grid_lat, grid_agl_wt, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
                     for axi in ax:
                         axi.set_extent(MOSAIC_AREA, crs=ccrs.PlateCarree())
-                    fig.savefig(f'./dataset/check_files-ACC1H_grid-{radarname}-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight') """
+                    fig.savefig(f'./dataset/check_files-ACC1H_grid-{radarname}-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
+                    input() """
                     a_radar = [acc_grid, ratio_file_grid, ratio_rain_grid, grid_sr_wt, grid_agl_wt]
                     a_radar = np.stack(a_radar, axis=0)  # (5, H, W)
                     all_griddata.append(a_radar)
