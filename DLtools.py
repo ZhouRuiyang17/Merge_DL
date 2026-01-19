@@ -147,8 +147,8 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
         gauge_grid = gauge_grid.to(device)                # (B,256,256)
         # gauge_mask = gauge_mask.to(device)                # (B,256,256)
         gauge_mask = (gauge_grid > 0).to(dtype=torch.float32)  # 动态生成 mask
-        x[:,[0,5,10,15,20]] /= 200.0 # 简单归一化雨量通道, 最小值为0，最大值约为200
-        gauge_grid /= 200.0
+        x[:,[0,5,10,15,20]] /= 100.0 # 简单归一化雨量通道, 最小值为0，最大值约为100
+        gauge_grid /= 100.0
 
 
         optimizer.zero_grad(set_to_none=True)
@@ -185,8 +185,8 @@ def eval_one_epoch(model, loader, loss_func, device):
         gauge_grid = gauge_grid.to(device)
         # gauge_mask = gauge_mask.to(device)
         gauge_mask = (gauge_grid > 0).to(dtype=torch.float32)
-        x[:,[0,5,10,15,20]] /= 200.0 # 简单归一化雨量通道, 最小值为0，最大值约为200
-        gauge_grid /= 200.0
+        x[:,[0,5,10,15,20]] /= 100.0 # 简单归一化雨量通道, 最小值为0，最大值约为100
+        gauge_grid /= 100.0
 
         weights, r_hat, logits = model(x)
         # r_hat = r_hat.squeeze(1)

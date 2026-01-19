@@ -52,8 +52,8 @@ logging.info('Loss: MSE Loss')
 from DLtools import build_concat_dataset, train_one_epoch, eval_one_epoch
 
 t1 = datetime.datetime.now()
-dataset = build_concat_dataset("dataset_files", require_gauge=False, task='1718')
-logging.info("使用数据集: 2017和2018年的数据, 不要求下雨")
+dataset = build_concat_dataset("dataset_files", require_gauge=True, task='1718')
+logging.info("使用数据集: 2017和2018年的数据. 但是降雨的最大值从200改为100.")
 logging.info(f"数据集样本数: {len(dataset)}")
 logging.info(f"加载数据集用时: {(datetime.datetime.now()-t1).total_seconds():.2f} 秒")
 
