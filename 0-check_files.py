@@ -67,7 +67,7 @@ def check_ACC(ls_fp, timestamp):
         ax[i].add_patch(rec)
         cmap, norm, _, _ = et.colorbar('acc')
         ax[i].scatter(GRID_LON[loc], GRID_LAT[loc], s=20, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
-        ax[i+5].scatter(GRID_LON[loc], GRID_LAT[loc], s=100, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='k', linewidths=0.2)
+        ax[i+5].scatter(GRID_LON[loc], GRID_LAT[loc], s=200, c=grid_gauge[loc], marker='o', cmap=cmap, norm=norm, edgecolors='white', linewidths=0.2)
 
     fig.savefig(f'./dataset/check_files-ACC1H-{timestamp.strftime("%Y%m%d%H%M")}-{WINDOW_SIZE}.png', dpi=300, bbox_inches='tight')
 
@@ -189,9 +189,9 @@ def collect_files():
 
 if __name__ == '__main__':
     # check_QC()
-    collect_files()
-    # df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
-    # for hour in range(15, 22):
-    #     timestamp = pd.to_datetime(f'2019-07-22 {hour}:00')
-    #     ls_fp = df.loc[timestamp].to_list()
-    #     check_ACC(ls_fp, timestamp)
+    # collect_files()
+    df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2017_2018.csv', index_col=0, parse_dates=True)
+    for hour in range(13, 19):
+        timestamp = pd.to_datetime(f'2018-08-12 {hour}:00')
+        ls_fp = df.loc[timestamp].to_list()
+        check_ACC(ls_fp, timestamp)
