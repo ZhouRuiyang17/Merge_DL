@@ -53,6 +53,63 @@ class MaskedMSELoss(nn.Module):
         # mean：只对有效像素求平均（关键）
         denom = gauge_mask.sum().clamp_min(self.eps)
         return se.sum() / denom
+class WeightedMaskedMSELoss(nn.Module):
+    """
+    分段加权的稀疏监督 MSE loss
+    - r_hat:   (B,1,H,W) or (B,H,W)
+    - gauge:   (B,1,H,W) or (B,H,W)，已归一化到 [0,1]
+    - mask:    (B,1,H,W) or (B,H,W)，雨量计有效像素=1
+    """
+
+    def __init__(self, reduction="mean"):
+        super().__init__()
+        assert reduction in ("mean", "sum")
+        self.reduction = reduction
+
+        # 分段定义
+        edge = np.arange(0.0, 1.01, 0.1)      # [0, 0.1, ..., 1.0]
+        weight = edge * 10.0                  # [0, 1, 2, ..., 10]
+
+        # 注册为 buffer，自动跟随 device
+        self.register_buffer(
+            "edge", torch.tensor(edge, dtype=torch.float32)
+        )
+        self.register_buffer(
+            "weight", torch.tensor(weight, dtype=torch.float32)
+        )
+
+    def forward(self, r_hat, gauge, mask):
+        # shape 对齐
+        if r_hat.dim() == 3:
+            r_hat = r_hat.unsqueeze(1)
+        if gauge.dim() == 3:
+            gauge = gauge.unsqueeze(1)
+        if mask.dim() == 3:
+            mask = mask.unsqueeze(1)
+
+        # 只在 mask=1 的位置计算
+        valid = mask > 0
+        if valid.sum() == 0:
+            return torch.tensor(
+                0.0, device=r_hat.device, requires_grad=True
+            )
+
+        # --- 分段权重 ---
+        # torch.bucketize: 找 gauge 属于哪个区间
+        # 返回 index ∈ [0, len(edge)-1]
+        idx = torch.bucketize(gauge, self.edge, right=True) - 1
+        idx = idx.clamp(min=0, max=len(self.weight) - 1)
+
+        w = self.weight[idx]                  # (B,1,H,W)
+
+        # --- 加权 MSE ---
+        loss = w * (r_hat - gauge) ** 2
+        loss = loss[valid]
+
+        if self.reduction == "mean":
+            return loss.mean()
+        else:
+            return loss.sum()
 
 
 # ========================================

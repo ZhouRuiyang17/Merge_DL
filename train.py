@@ -42,9 +42,12 @@ logging.info('Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"')
 # ========================================
 opmizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 logging.info('Optimizer: Adam, lr=1e-4')
-from DLtools import MaskedMSELoss
+from DLtools import MaskedMSELoss, WeightedMaskedMSELoss
 loss_func = MaskedMSELoss()
-logging.info('Loss: MSE Loss')
+# loss_func = WeightedMaskedMSELoss(reduction="mean").to(device)
+# logging.info('Loss: weighted MSE Loss')
+# logging.info(loss_func.edge)
+# logging.info(loss_func.weight)
 
 # ========================================
 # Module: 加载数据集
