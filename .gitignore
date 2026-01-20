@@ -1,5 +1,13 @@
 utils
+gridinfo
+dataset_files
+models
 
 *.png
 *.npy
 *.npz
+*.pyc
+*.csv
+epoch*
+.log
+.pt
