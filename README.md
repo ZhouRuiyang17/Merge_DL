@@ -1,4 +1,11 @@
 # Merge_DL
+- 工作流：
+    1. 修改模型model
+    2. 修改对应的损失函数和训练过程DLtools
+    3. train
+    4. test
+    5. 把数据取出来point2radar
+    6. 评估eval
 
 # 数据集生成
 generate_dataset_and_index
