@@ -111,15 +111,15 @@ def collect_files():
     #                 df.loc[timestamp, radarname] = filepath
     # df = df.sort_index()
     # df = df.fillna('nodata')
-    # df.to_csv('./dataset/filelist-QPE-hsr-2017_2018.csv')
+    # df.to_csv('./dataset/filelist-QPE-hsr-2019.csv')
     # return 0
-    df = pd.read_csv('./dataset/filelist-QPE-hsr-2017_2018.csv', index_col=0, parse_dates=True)
+    df = pd.read_csv('./dataset/filelist-QPE-hsr-2019.csv', index_col=0, parse_dates=True)
     df = df.fillna('nodata')
 
     df_acc = pd.DataFrame(columns=columns)
     time_index = pd.date_range(
-                    start="2017-05-01 00:00",
-                    end="2018-10-30 23:00",
+                    start="2019-07-01 00:00",
+                    end="2019-09-30 23:00",
                     freq="H"
                 )
     for timestamp in time_index:
@@ -185,13 +185,13 @@ def collect_files():
         date = timestamp.strftime('%Y%m%d')
         fp = f'/data/zry/BJradar_processed/radarsys-out/{date}/ACC1H-hsr/Merge_DL-0.001deg/gauge_{timestamp_str}.npz'
         df_acc.loc[timestamp, 'gauge'] = fp
-    df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2017_2018.csv')
+    df_acc.to_csv('./dataset/filelist-ACC1H-hsr-2019.csv')
 
 if __name__ == '__main__':
     # check_QC()
-    # collect_files()
-    df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2017_2018.csv', index_col=0, parse_dates=True)
-    for hour in range(13, 19):
-        timestamp = pd.to_datetime(f'2018-08-12 {hour}:00')
-        ls_fp = df.loc[timestamp].to_list()
-        check_ACC(ls_fp, timestamp)
+    collect_files()
+    # df = pd.read_csv('./dataset/filelist-ACC1H-hsr-2019.csv', index_col=0, parse_dates=True)
+    # for hour in range(13, 19):
+    #     timestamp = pd.to_datetime(f'2018-08-12 {hour}:00')
+    #     ls_fp = df.loc[timestamp].to_list()
+    #     check_ACC(ls_fp, timestamp)
