@@ -53,6 +53,64 @@ class MaskedMSELoss(nn.Module):
         # mean：只对有效像素求平均（关键）
         denom = gauge_mask.sum().clamp_min(self.eps)
         return se.sum() / denom
+    
+def tv_loss(x: torch.Tensor) -> torch.Tensor:
+    # x: (B,1,H,W) 或 (B,H,W) 都行
+    if x.dim() == 3:
+        x = x.unsqueeze(1)
+    dy = (x[..., 1:, :] - x[..., :-1, :]).abs().mean()
+    dx = (x[..., :, 1:] - x[..., :, :-1]).abs().mean()
+    return dx + dy
+
+
+class MaskedMSELoss_cor(nn.Module):
+    """
+    总损失 = MaskedMSE(r_hat) + lam_c * E[(c-1)^2] + lam_tv * TV(c)
+
+    用法：
+      loss = loss_fn(r_hat, gauge_grid, gauge_mask, c=c)
+
+    约定：
+      - r_hat: (B,1,H,W) 或 (B,H,W)
+      - gauge_grid: (B,1,H,W)/(B,H,W)
+      - gauge_mask: (B,1,H,W)/(B,H,W)
+      - c: (B,1,H,W)/(B,H,W) 订正场
+    """
+    def __init__(
+        self,
+        lam_c: float = 1e-3,
+        lam_tv: float = 0.0,
+        eps: float = 1e-6,
+        reduction: str = "mean",
+    ):
+        super().__init__()
+        self.base = MaskedMSELoss(eps=eps, reduction=reduction)
+        self.lam_c = lam_c
+        self.lam_tv = lam_tv
+
+    def forward(
+        self,
+        r_hat: torch.Tensor,
+        gauge_grid: torch.Tensor,
+        gauge_mask: torch.Tensor,
+        c: torch.Tensor,
+    ) -> torch.Tensor:
+        loss_g = self.base(r_hat, gauge_grid, gauge_mask)
+
+        if c.dim() == 3:
+            c_ = c.unsqueeze(1)
+        else:
+            c_ = c
+
+        loss_c = ((c_ - 1.0) ** 2).mean()
+        loss = loss_g + self.lam_c * loss_c
+
+        if self.lam_tv > 0:
+            loss = loss + self.lam_tv * tv_loss(c_)
+
+        return loss
+
+
 class WeightedMaskedMSELoss(nn.Module):
     """
     分段加权的稀疏监督 MSE loss
@@ -214,12 +272,12 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
         if has_invalid:
             print("Warning: 输入数据包含无效值，跳过该批次")
             continue
-        weights, r_hat, logits = model(x)                 # r_hat: (B,1,256,256)
+        weights, r_hat, logits, c = model(x)                 # r_hat: (B,1,256,256)
         # r_hat = r_hat.squeeze(1)                          # -> (B,256,256)
         ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
         ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
-        loss = loss_func(r_hat, gauge_grid, gauge_mask)   # 你的loss若要求B1HW就别squeeze
+        loss = loss_func(r_hat, gauge_grid, gauge_mask, c=c)   # 你的loss若要求B1HW就别squeeze
         loss.backward()
         optimizer.step()
 
@@ -245,12 +303,12 @@ def eval_one_epoch(model, loader, loss_func, device):
         x[:,[0,5,10,15,20]] /= 100.0 # 简单归一化雨量通道, 最小值为0，最大值约为100
         gauge_grid /= 100.0
 
-        weights, r_hat, logits = model(x)
+        weights, r_hat, logits, c = model(x)
         # r_hat = r_hat.squeeze(1)
         ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
         ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
-        loss = loss_func(r_hat, gauge_grid, gauge_mask)
+        loss = loss_func(r_hat, gauge_grid, gauge_mask, c=c)
         bs = x.size(0)
         total_loss += loss.item() * bs
         n += bs

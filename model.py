@@ -241,6 +241,66 @@ class RadarFusionWeightNet(nn.Module):
         r_hat = torch.sum(weights * r_stack, dim=1, keepdim=True)    # (B,1,H,W)
         return weights, r_hat, logits
 
+class RadarFusionWeightNet2Head(nn.Module):
+    def __init__(
+        self,
+        in_ch=25,
+        base_ch=32,
+        depth=4,
+        n_res=1,
+        norm="nonorm",
+        act="relu",
+        filecnt_mask=True,
+        filecnt_threshold=0.8,
+        filecnt_logits_penalty=1e9,
+        c_min=0.5,
+        c_max=2.0,
+        c_head_hidden=16,
+    ):
+        super().__init__()
+        self.filecnt_mask = filecnt_mask
+        self.filecnt_threshold = filecnt_threshold
+        self.filecnt_logits_penalty = filecnt_logits_penalty
+        if self.filecnt_mask:
+            print(f"filecnt masking is ENABLED with threshold={filecnt_threshold} and penalty={filecnt_logits_penalty:.1e}")
+        self.c_min, self.c_max = c_min, c_max
+
+
+        self.backbone = UNetBackbone(
+            in_ch=in_ch, base_ch=base_ch, depth=depth, n_res=n_res, norm=norm, act=act
+        )
+        feat_ch = self.backbone.out_ch
+
+        # logits head
+        self.head = WeightHead(self.backbone.out_ch, k_radars=5)
+
+        
+        self.c_head = nn.Sequential(
+            nn.Conv2d(feat_ch, c_head_hidden, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(c_head_hidden, 1, kernel_size=1),
+        )
+
+    def forward(self, x):
+        feat = self.backbone(x)
+
+        logits = self.head(feat)  # (B,5,H,W)
+        z_c = self.c_head(feat)          # (B,1,H,W)
+
+        # gating only for logits (availability)
+        if self.filecnt_mask:
+            filecnt = x[:, [1,6,11,16,21]]
+            unavailable = (filecnt <= self.filecnt_threshold).to(logits.dtype)
+            logits = logits - unavailable * self.filecnt_logits_penalty
+
+        weights = F.softmax(logits, dim=1)  # (B,5,H,W)
+        r_stack = x[:, [0,5,10,15,20]]      # (B,5,H,W)
+        r0 = torch.sum(weights * r_stack, dim=1, keepdim=True)
+
+        c = self.c_min + (self.c_max - self.c_min) * torch.sigmoid(z_c)  # (B,1,H,W)
+        r_hat = c * r0
+
+        return weights, r_hat, logits, c
 
 # -------------------------
 # 5) (Optional) a helper loss for sparse gauges (you can use or ignore)

@@ -11,21 +11,21 @@ import radarsys as rds
 
 MOSAIC_AREA, grid_lon, grid_lat = area_Merge_DL(True)
 siteinfo_path = '/data/zry/siteinfo/gauge_info.csv'
-""" df_fp = pd.DataFrame(columns=['filepath'])
+df_fp = pd.DataFrame(columns=['filepath'])
 PATH = '/data/zry/BJradar_processed/radarsys-out/'
 for root, dirs, files in os.walk(PATH):
     for file in files:
-        if file.endswith('.npz') and 'Merge_DL' in file and '2019' in root:
+        if file.endswith('.npz') and 'Merge_DL' in file and '2019' in root and 'Merge_DL_ver2' in root:
             timestamp = file.split('_')[-1].split('.')[0]
             timestamp = datetime.datetime.strptime(timestamp, '%Y%m%d%H%M')
             df_fp.loc[timestamp] = [os.path.join(root, file)]
 df_fp = df_fp.sort_index()
-df_fp.to_csv('./results/filelist-ver1-1718_100.csv') """
-df_fp = pd.read_csv('./results/filelist-ver1-1718_100.csv', index_col=0, parse_dates=True)
+df_fp.to_csv('./results/filelist-ver2.csv')
+df_fp = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
 ls_fp = df_fp['filepath'].tolist()
 
 
-def reader(fp, mode=5):
+def reader(fp, mode=-2):
     filename = os.path.basename(fp)
     timestamp_str = filename.split('_')[-1].split('.')[0]
     timestamp = datetime.datetime.strptime(timestamp_str, '%Y%m%d%H%M')
@@ -37,8 +37,11 @@ def reader(fp, mode=5):
     elif mode == 5: # 最大值融合
         griddata_k = files['R_k'].squeeze()
         griddata = np.nanmax(griddata_k, axis=0)
+    elif mode == -2:
+        correct_coeff = files['correct_coeff'].squeeze()
+        griddata = correct_coeff
     return timestamp, griddata
 
 out = p2r.lookup(ls_fp, grid_lon, grid_lat, siteinfo_path, reader)
 out = out.sort_index()
-out.to_csv('./results/acc-max.csv')
+out.to_csv('./results/correct_coeff-ver2.csv')
