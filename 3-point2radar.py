@@ -16,17 +16,17 @@ siteinfo_path = '/data/zry/siteinfo/gauge_info.csv'
 PATH = '/data/zry/BJradar_processed/radarsys-out/'
 for root, dirs, files in os.walk(PATH):
     for file in files:
-        if file.endswith('.npz') and 'Merge_DL' in file and '2019' in root and 'Merge_DL_ver2' in root:
+        if file.endswith('.npz') and 'Merge_trad' in file and '2019' in root and 'Merge_DL_ver2' not in root:
             timestamp = file.split('_')[-1].split('.')[0]
             timestamp = datetime.datetime.strptime(timestamp, '%Y%m%d%H%M')
             df_fp.loc[timestamp] = [os.path.join(root, file)]
 df_fp = df_fp.sort_index()
-df_fp.to_csv('./results/filelist-ver2.csv') """
-df_fp = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
+df_fp.to_csv('./results/filelist-trad.csv') """
+df_fp = pd.read_csv('./results/filelist-trad.csv', index_col=0, parse_dates=True)
 ls_fp = df_fp['filepath'].tolist()
 
 
-def reader(fp, mode=4):
+def reader(fp, mode=12):
     filename = os.path.basename(fp)
     timestamp_str = filename.split('_')[-1].split('.')[0]
     timestamp = datetime.datetime.strptime(timestamp_str, '%Y%m%d%H%M')
@@ -41,8 +41,14 @@ def reader(fp, mode=4):
     elif mode == -2:
         correct_coeff = files['correct_coeff'].squeeze()
         griddata = correct_coeff
+    elif mode == 11:
+        griddata = files['R_max'].squeeze()
+    elif mode == 12:
+        griddata = files['R_avg'].squeeze()
+    elif mode == 13:
+        griddata = files['R_wt'].squeeze()
     return timestamp, griddata
 
 out = p2r.lookup(ls_fp, grid_lon, grid_lat, siteinfo_path, reader)
 out = out.sort_index()
-out.to_csv('./results/acc-Z9010.csv')
+out.to_csv('./results/acc-R_avg.csv')

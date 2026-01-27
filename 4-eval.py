@@ -50,13 +50,18 @@ def plot_scatter(gauge: pd.DataFrame, ls_radar: List[pd.DataFrame], axs: List[pl
         axs[i].set_title(ls_titles[i])
         
     ### calculate csi, pod, far
-    df = pd.DataFrame(columns=['RMB','RMSE','CORR','CSI-1mm', 'POD-1mm', 'FAR-1mm', 'CSI-10mm', 'POD-10mm', 'FAR-10mm'])
+    df = pd.DataFrame(columns=['RMB','RMSE','CORR',
+                               'CSI-1mm', 'POD-1mm', 'FAR-1mm', 
+                               'CSI-5mm', 'POD-5mm', 'FAR-5mm',                                
+                               'CSI-10mm', 'POD-10mm', 'FAR-10mm'])
     for i in range(len(ls_radar)):
         metircs = et.get_metrics(gauge_hit, ls_radar_hit[i])
         metrics_1mm = et.get_metrics_hit(gauge_arr, ls_radar_arr[i], threshold=1)
+        metrics_5mm = et.get_metrics_hit(gauge_arr, ls_radar_arr[i], threshold=5)
         metrics_10mm = et.get_metrics_hit(gauge_arr, ls_radar_arr[i], threshold=10)
         df.loc[ls_titles[i]] = [metircs['RMB'], metircs['RMSE'], metircs['CORR'],
                                     metrics_1mm['CSI'], metrics_1mm['POD'], metrics_1mm['FAR'],
+                                    metrics_5mm['CSI'], metrics_5mm['POD'], metrics_5mm['FAR'],
                                     metrics_10mm['CSI'], metrics_10mm['POD'], metrics_10mm['FAR']]
 
     ### plot box
@@ -130,14 +135,16 @@ if __name__ == "__main__":
     gauge[gauge>1000] = np.nan
     gauge = gauge.fillna(0)
 
-    dict_radar = {'model': 'ver1',
+    dict_radar = {'model1': 'ver1',
                   'model2': 'ver2',
-                  'max mosaic': 'max',
+                  'max mosaic': 'R_max',
+                  'avg mosaic': 'R_avg',
+                  'wtavg mosaic': 'R_wt',
                 #    'BJXFS': 'BJXFS',
                 #    'BJXCP': 'BJXCP',
                 #    'BJXSY': 'BJXSY',
                 #    'BJXTZ': 'BJXTZ',
-                   'Z9010': 'Z9010',
+                #    'Z9010': 'Z9010',
                    }
     ls_radar = [pd.read_csv(f'./results/acc-{filename}.csv', index_col=0, parse_dates=True).loc['2019'] for filename in dict_radar.values()]
     correct_coeff = pd.read_csv('./results/correct_coeff-ver2.csv', index_col=0, parse_dates=True).loc['2019']
@@ -152,49 +159,50 @@ if __name__ == "__main__":
     print(df)
     df.to_csv(f'./results/metrics.csv')
 
-    filelist = pd.read_csv('./results/filelist-ver1.csv', index_col=0, parse_dates=True)
-    filelist2 = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
-    timestamp = pd.to_datetime('201907221600', format='%Y%m%d%H%M')
+    # filelist = pd.read_csv('./results/filelist-ver1.csv', index_col=0, parse_dates=True)
+    # filelist2 = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
+    # timestamp = pd.to_datetime('201907221600', format='%Y%m%d%H%M')
 
-    fp = filelist.loc[timestamp, 'filepath']
-    files = np.load(fp)
-    griddata_DL = files.get('R_hat').squeeze()
-    griddata_k = files.get('R_k').squeeze()
-    griddata_max = np.nanmax(griddata_k, axis=0)
-    fp2 = filelist2.loc[timestamp, 'filepath']
-    files2 = np.load(fp2)
-    griddata_DL_2 = files2.get('R_hat').squeeze()
+    # fp = filelist.loc[timestamp, 'filepath']
+    # files = np.load(fp)
+    # griddata_DL = files.get('R_hat').squeeze()
+    # griddata_k = files.get('R_k').squeeze()
+    # griddata_max = np.nanmax(griddata_k, axis=0)
+    # fp2 = filelist2.loc[timestamp, 'filepath']
+    # files2 = np.load(fp2)
+    # griddata_DL_2 = files2.get('R_hat').squeeze()
 
-    """ ls_griddata = [griddata_DL, griddata_DL_2, griddata_max] + [griddata_k[i] for i in range(griddata_k.shape[0])]
-    fig, ax = plt.subplots(1, len(ls_griddata), figsize=(5*len(ls_griddata), 5), subplot_kw={'projection': ccrs.PlateCarree()})
-    ax = ax.flatten()
-    plot_distribution(ls_griddata, list(dict_radar.keys()), ax)
-    fig.savefig(f'./results/distribution-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight') """
+    # """ ls_griddata = [griddata_DL, griddata_DL_2, griddata_max] + [griddata_k[i] for i in range(griddata_k.shape[0])]
+    # fig, ax = plt.subplots(1, len(ls_griddata), figsize=(5*len(ls_griddata), 5), subplot_kw={'projection': ccrs.PlateCarree()})
+    # ax = ax.flatten()
+    # plot_distribution(ls_griddata, list(dict_radar.keys()), ax)
+    # fig.savefig(f'./results/distribution-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight') """
 
-    correct_coeff = files2.get('correct_coeff').squeeze()
-    edges = np.arange(0, 2.01, 0.1)
-    cmap, norm = discrete_cmap_with_white_bins(
-        edges,
-        base_cmap='RdBu_r',
-        white_ranges=[(0.9, 1.0), (1.0, 1.1)]
-    )
+    
+    # correct_coeff = files2.get('correct_coeff').squeeze()
+    # edges = np.arange(0, 2.01, 0.1)
+    # cmap, norm = discrete_cmap_with_white_bins(
+    #     edges,
+    #     base_cmap='RdBu_r',
+    #     white_ranges=[(0.9, 1.0), (1.0, 1.1)]
+    # )
 
-    fig, ax = plt.subplots(1,1, figsize=(5,5), subplot_kw={'projection': ccrs.PlateCarree()})
-    ax.set_extent(MOSAIC_AREA, crs=ccrs.PlateCarree())
-    et.load_shapefile(ax=ax, color='black')
-    # cmap_tr, norm_tr = et.colobar_dem(3000)
-    # terrain_data, lon, lat = et.load_dem(MOSAIC_AREA, terrain_path='/data/zry/gis/srtm90_60_0405.tif')
-    # ax.pcolormesh(lon, lat, terrain_data, cmap=cmap_tr, norm=norm_tr, alpha=0.3, transform=ccrs.PlateCarree())
-    pm = ax.pcolormesh(grid_lon, grid_lat, correct_coeff, cmap=cmap, norm=norm)
-    ax.set_title('Correct Coefficient')
-    cbar = fig.colorbar(pm, ax=ax, orientation='vertical', pad=0.02, fraction=0.05)
-    cbar.set_label('Correct Coefficient', fontsize=fontsize)
-    fig.savefig(f'./results/correct_coeff-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
+    # fig, ax = plt.subplots(1,1, figsize=(5,5), subplot_kw={'projection': ccrs.PlateCarree()})
+    # ax.set_extent(MOSAIC_AREA, crs=ccrs.PlateCarree())
+    # et.load_shapefile(ax=ax, color='black')
+    # # cmap_tr, norm_tr = et.colobar_dem(3000)
+    # # terrain_data, lon, lat = et.load_dem(MOSAIC_AREA, terrain_path='/data/zry/gis/srtm90_60_0405.tif')
+    # # ax.pcolormesh(lon, lat, terrain_data, cmap=cmap_tr, norm=norm_tr, alpha=0.3, transform=ccrs.PlateCarree())
+    # pm = ax.pcolormesh(grid_lon, grid_lat, correct_coeff, cmap=cmap, norm=norm)
+    # ax.set_title('Correct Coefficient')
+    # cbar = fig.colorbar(pm, ax=ax, orientation='vertical', pad=0.02, fraction=0.05)
+    # cbar.set_label('Correct Coefficient', fontsize=fontsize)
+    # fig.savefig(f'./results/correct_coeff-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
 
-    fig, ax = plt.subplots(1,1, figsize=(5,5))
-    weights = np.ones_like(correct_coeff.flatten()) / correct_coeff.size * 100  # 转化为百分比
-    ax.hist(correct_coeff.flatten(), bins=edges, color='blue', alpha=0.7, edgecolor='black', weights=weights, density=False)
-    ax.set_xlabel('Correct Coefficient', fontsize=fontsize)
-    ax.set_ylabel('%', fontsize=fontsize)
-    ax.set_title('Distribution of Correct Coefficient', fontsize=fontsize)
-    fig.savefig(f'./results/correct_coeff-hist-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
+    # fig, ax = plt.subplots(1,1, figsize=(5,5))
+    # weights = np.ones_like(correct_coeff.flatten()) / correct_coeff.size * 100  # 转化为百分比
+    # ax.hist(correct_coeff.flatten(), bins=edges, color='blue', alpha=0.7, edgecolor='black', weights=weights, density=False)
+    # ax.set_xlabel('Correct Coefficient', fontsize=fontsize)
+    # ax.set_ylabel('%', fontsize=fontsize)
+    # ax.set_title('Distribution of Correct Coefficient', fontsize=fontsize)
+    # fig.savefig(f'./results/correct_coeff-hist-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
