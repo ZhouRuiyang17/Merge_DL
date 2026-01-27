@@ -69,8 +69,8 @@ def infer_full_1024_sliding(
     logit_acc = torch.zeros((K, H, W), device=device, dtype=torch.float32)
     logit_cnt = torch.zeros((H, W), device=device, dtype=torch.float32)
 
-    c_acc = torch.zeros((H, W), device=device, dtype=torch.float32)
-    c_cnt = torch.zeros((H, W), device=device, dtype=torch.float32)
+    # c_acc = torch.zeros((H, W), device=device, dtype=torch.float32) # NOTE: ver1不需要
+    # c_cnt = torch.zeros((H, W), device=device, dtype=torch.float32) # NOTE: ver1不需要
 
     # ---- sliding positions (确保最后一块覆盖边界)
     ys = list(range(0, H - window + 1, stride))
@@ -88,8 +88,8 @@ def infer_full_1024_sliding(
         if not patches:
             return
         x_batch = torch.stack(patches, dim=0)  # (B,25,window,window)
-        weights, r_hat, logits, c = model(x_batch)  # weights/logits: (B,5,win,win), r_hat: (B,1,win,win) or (B,win,win)
-        c = c[:, 0]  # (B,)
+        weights, r_hat, logits = model(x_batch)  # weights/logits: (B,5,win,win), r_hat: (B,1,win,win) or (B,win,win)
+        # c = c[:, 0]  # (B,) # NOTE: ver1不需要
 
         if r_hat.dim() == 4:
             r_hat_ = r_hat[:, 0]  # (B,win,win)
@@ -114,8 +114,8 @@ def infer_full_1024_sliding(
             logit_cnt[y0:y1, x0:x1] += 1.0
 
             # correct coefficient c
-            c_acc[y0:y1, x0:x1] += c[b]
-            c_cnt[y0:y1, x0:x1] += 1.0
+            # c_acc[y0:y1, x0:x1] += c[b] # NOTE: ver1不需要
+            # c_cnt[y0:y1, x0:x1] += 1.0
 
         patches.clear()
         coords.clear()
@@ -133,7 +133,7 @@ def infer_full_1024_sliding(
     r_full = r_acc / r_cnt.clamp_min(1.0)
     w_full = w_acc / w_cnt.clamp_min(1.0)
     logits_full = logit_acc / logit_cnt.clamp_min(1.0)
-    c_full = c_acc / c_cnt.clamp_min(1.0)
+    # c_full = c_acc / c_cnt.clamp_min(1.0) # NOTE: ver1不需要
 
     # ---- derived: max weight id & entropy
     max_id = torch.argmax(w_full, dim=0).to(torch.int16)  # (H,W)
@@ -151,10 +151,10 @@ def infer_full_1024_sliding(
             logits_full.detach().cpu().numpy(),          # (5,H,W)
             max_id.detach().cpu().numpy(),               # (H,W)
             entropy.detach().cpu().numpy(),              # (H,W)
-            c_full.detach().cpu().numpy(),              # (H,W)
+            # c_full.detach().cpu().numpy(),              # (H,W) # NOTE: ver1不需要
         )
     else:
-        return r_full, w_full, logits_full, max_id, entropy, c_full
+        return r_full, w_full, logits_full, max_id, entropy # NOTE: ver1不需要
 
 
 def run(model, x_full_25hw, device="cuda"):
@@ -166,12 +166,12 @@ def run(model, x_full_25hw, device="cuda"):
     x_full = x_full.to(device)
     x_full[[0,5,10,15,20],:,:] = x_full[[0,5,10,15,20],:,:] / 100.0
 
-    r_full, w_full, logits_full, max_id, entropy, c_full = infer_full_1024_sliding(
+    r_full, w_full, logits_full, max_id, entropy = infer_full_1024_sliding( # NOTE: ver1不需要
         model, x_full,  window=256, stride=128, batch_size=8
     )
     r_full = r_full * 100.0  # 恢复到实际雨量范围
 
-    return r_full, w_full, logits_full, max_id, entropy, c_full
+    return r_full, w_full, logits_full, max_id, entropy # NOTE: ver1不需要
 
 def save_full_scene_npz(
     out_path,
@@ -181,7 +181,7 @@ def save_full_scene_npz(
     R_hat,        # (H,W) numpy
     max_id,
     entropy,
-    c_full,        # (H,W) numpy
+    # c_full,        # (H,W) numpy # NOTE: ver1不需要
     filecnt_k=None,
     rainfreq_k=None,
     meta=None,
@@ -199,7 +199,7 @@ def save_full_scene_npz(
         "R_hat": R_hat,
         "entropy": entropy,
         "max_id": max_id,
-        "correct_coeff": c_full,
+        # "correct_coeff": c_full, # NOTE: ver1不需要
     }
 
     if filecnt_k is not None:
@@ -289,9 +289,10 @@ def main():
     print(f"Using device: {device}")
 
     from model import RadarFusionWeightNet, RadarFusionWeightNet2Head
-    model = RadarFusionWeightNet2Head(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",
-                                    c_min=0.5, c_max=2.0, c_head_hidden=16).to(device)
-    MODELPATH = 'models/ver2'
+    model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",).to(device)
+    # model = RadarFusionWeightNet2Head(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",
+    #                                 c_min=0.5, c_max=2.0, c_head_hidden=16).to(device)
+    MODELPATH = 'models/ver1'
     model, best_ep, best_va = load_model_from_ckpt(model, f'{MODELPATH}/best.pt', device)
     import logging
     logging.basicConfig(
@@ -307,10 +308,10 @@ def main():
     dict_gridinfo = load_gridinfo(radarnames)
     for timestamp in df.index:
         x_input = prepare_inputs(timestamp, df.loc[timestamp], dict_gridinfo, radarnames)
-        r_full, w_full, logits_full, max_id, entropy, c_full = run(model, x_input, device=device)
+        r_full, w_full, logits_full, max_id, entropy = run(model, x_input, device=device) # NOTE: ver1不需要
 
         date = timestamp.strftime('%Y%m%d')
-        out_path = f'/data/zry/BJradar_processed/radarsys-out/{date}/ACC1H-hsr/Merge_DL_ver2/Merge_DL_{timestamp.strftime("%Y%m%d%H%M")}.npz'
+        out_path = f'/data/zry/BJradar_processed/radarsys-out/{date}/ACC1H-hsr/Merge_DL/Merge_DL_{timestamp.strftime("%Y%m%d%H%M")}.npz'
         save_full_scene_npz(
             out_path,
             R_k = x_input[[0,5,10,15,20],:,:],   # (5,H,W) numpy
@@ -319,7 +320,7 @@ def main():
             R_hat = r_full,                      # (H,W) numpy
             max_id = max_id,
             entropy = entropy,
-            c_full = c_full,                      # (H,W) numpy
+            # c_full = c_full,                      # (H,W) numpy # NOTE: ver1不需要
         )
         logging.info(f"Saved output to {out_path} for timestamp {timestamp}")
 

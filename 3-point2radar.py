@@ -11,7 +11,8 @@ import radarsys as rds
 
 MOSAIC_AREA, grid_lon, grid_lat = area_Merge_DL(True)
 siteinfo_path = '/data/zry/siteinfo/gauge_info.csv'
-df_fp = pd.DataFrame(columns=['filepath'])
+
+""" df_fp = pd.DataFrame(columns=['filepath'])
 PATH = '/data/zry/BJradar_processed/radarsys-out/'
 for root, dirs, files in os.walk(PATH):
     for file in files:
@@ -20,12 +21,12 @@ for root, dirs, files in os.walk(PATH):
             timestamp = datetime.datetime.strptime(timestamp, '%Y%m%d%H%M')
             df_fp.loc[timestamp] = [os.path.join(root, file)]
 df_fp = df_fp.sort_index()
-df_fp.to_csv('./results/filelist-ver2.csv')
+df_fp.to_csv('./results/filelist-ver2.csv') """
 df_fp = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
 ls_fp = df_fp['filepath'].tolist()
 
 
-def reader(fp, mode=-2):
+def reader(fp, mode=4):
     filename = os.path.basename(fp)
     timestamp_str = filename.split('_')[-1].split('.')[0]
     timestamp = datetime.datetime.strptime(timestamp_str, '%Y%m%d%H%M')
@@ -44,4 +45,4 @@ def reader(fp, mode=-2):
 
 out = p2r.lookup(ls_fp, grid_lon, grid_lat, siteinfo_path, reader)
 out = out.sort_index()
-out.to_csv('./results/correct_coeff-ver2.csv')
+out.to_csv('./results/acc-Z9010.csv')

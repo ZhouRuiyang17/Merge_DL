@@ -66,6 +66,63 @@ def plot_scatter(gauge: pd.DataFrame, ls_radar: List[pd.DataFrame], axs: List[pl
     
     return df
 
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
+
+def discrete_cmap_with_white_bins(
+    edges,
+    base_cmap='RdBu_r',
+    white_ranges=[(0.9, 1.0), (1.0, 1.1)],
+    tol=1e-6,
+):
+    """
+    构造离散 colormap + BoundaryNorm，并将指定区间涂成白色。
+
+    Parameters
+    ----------
+    edges : 1D array
+        bin 边界，如 np.arange(0, 2.01, 0.1)
+    base_cmap : str or Colormap
+        基础 colormap 名称或对象
+    white_ranges : list of (low, high)
+        需要涂白的区间，如 [(0.9,1.0), (1.0,1.1)]
+        必须与 edges 对齐
+    tol : float
+        浮点匹配容差
+
+    Returns
+    -------
+    cmap : ListedColormap
+    norm : BoundaryNorm
+    """
+
+    edges = np.asarray(edges)
+    N = len(edges) - 1
+
+    # 基础离散 cmap
+    base = plt.get_cmap(base_cmap, N)
+    colors = base(np.arange(N))
+
+    # 辅助函数：找 bin index
+    def find_bin(val):
+        idx = np.where(np.abs(edges[:-1] - val) < tol)[0]
+        if len(idx) == 0:
+            raise ValueError(f"Value {val} not found in edges")
+        return idx[0]
+
+    # 替换为白色
+    for lo, hi in white_ranges:
+        i = find_bin(lo)
+        # 可选：检查 hi 是否等于 edges[i+1]
+        if abs(edges[i+1] - hi) > tol:
+            raise ValueError(f"Range ({lo},{hi}) does not align with edges")
+        colors[i] = [1, 1, 1, 1]
+
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(edges, ncolors=cmap.N, clip=False)
+
+    return cmap, norm
 
 
 if __name__ == "__main__":
@@ -73,7 +130,7 @@ if __name__ == "__main__":
     gauge[gauge>1000] = np.nan
     gauge = gauge.fillna(0)
 
-    dict_radar = {'model': 'ver1-1718_100',
+    dict_radar = {'model': 'ver1',
                   'model2': 'ver2',
                   'max mosaic': 'max',
                 #    'BJXFS': 'BJXFS',
@@ -95,7 +152,7 @@ if __name__ == "__main__":
     print(df)
     df.to_csv(f'./results/metrics.csv')
 
-    filelist = pd.read_csv('./results/filelist-ver1-1718_100.csv', index_col=0, parse_dates=True)
+    filelist = pd.read_csv('./results/filelist-ver1.csv', index_col=0, parse_dates=True)
     filelist2 = pd.read_csv('./results/filelist-ver2.csv', index_col=0, parse_dates=True)
     timestamp = pd.to_datetime('201907221600', format='%Y%m%d%H%M')
 
@@ -115,12 +172,19 @@ if __name__ == "__main__":
     fig.savefig(f'./results/distribution-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight') """
 
     correct_coeff = files2.get('correct_coeff').squeeze()
-    norm = TwoSlopeNorm(vmin=0.5, vcenter=1.0, vmax=2.0)
-    cmap = plt.get_cmap('RdBu')
-    edges = np.arange(0.5, 2.01, 0.05)
+    edges = np.arange(0, 2.01, 0.1)
+    cmap, norm = discrete_cmap_with_white_bins(
+        edges,
+        base_cmap='RdBu_r',
+        white_ranges=[(0.9, 1.0), (1.0, 1.1)]
+    )
 
     fig, ax = plt.subplots(1,1, figsize=(5,5), subplot_kw={'projection': ccrs.PlateCarree()})
     ax.set_extent(MOSAIC_AREA, crs=ccrs.PlateCarree())
+    et.load_shapefile(ax=ax, color='black')
+    # cmap_tr, norm_tr = et.colobar_dem(3000)
+    # terrain_data, lon, lat = et.load_dem(MOSAIC_AREA, terrain_path='/data/zry/gis/srtm90_60_0405.tif')
+    # ax.pcolormesh(lon, lat, terrain_data, cmap=cmap_tr, norm=norm_tr, alpha=0.3, transform=ccrs.PlateCarree())
     pm = ax.pcolormesh(grid_lon, grid_lat, correct_coeff, cmap=cmap, norm=norm)
     ax.set_title('Correct Coefficient')
     cbar = fig.colorbar(pm, ax=ax, orientation='vertical', pad=0.02, fraction=0.05)
@@ -128,8 +192,9 @@ if __name__ == "__main__":
     fig.savefig(f'./results/correct_coeff-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')
 
     fig, ax = plt.subplots(1,1, figsize=(5,5))
-    ax.hist(correct_coeff.flatten(), bins=edges, color='blue', alpha=0.7, edgecolor='black')
+    weights = np.ones_like(correct_coeff.flatten()) / correct_coeff.size * 100  # 转化为百分比
+    ax.hist(correct_coeff.flatten(), bins=edges, color='blue', alpha=0.7, edgecolor='black', weights=weights, density=False)
     ax.set_xlabel('Correct Coefficient', fontsize=fontsize)
-    ax.set_ylabel('Frequency', fontsize=fontsize)
+    ax.set_ylabel('%', fontsize=fontsize)
     ax.set_title('Distribution of Correct Coefficient', fontsize=fontsize)
     fig.savefig(f'./results/correct_coeff-hist-{timestamp.strftime("%Y%m%d%H%M")}.png', dpi=300, bbox_inches='tight')

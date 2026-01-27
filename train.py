@@ -34,11 +34,11 @@ logging.basicConfig(
     format='%(asctime)s---%(message)s',        # 日志格式
     datefmt='%Y-%m-%d %H:%M:%S'                # 时间格式
 )
-# model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",).to(device)
-# logging.info('Model: base=32, depth=4, n_res=1, norm="nonorm", act="relu"')
-model = RadarFusionWeightNet2Head(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",
-                                  c_min=0.5, c_max=2.0, c_head_hidden=16).to(device)
-logging.info('Model: RadarFusionWeightNet2Head, base=32, depth=4, n_res=1, norm="nonorm", act="relu", c_min=0.5, c_max=2.0, c_head_hidden=16')
+model = RadarFusionWeightNet(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",).to(device)
+logging.info('Model: RadarFusionWeightNet, base=32, depth=4, n_res=1, norm="nonorm", act="relu"')
+# model = RadarFusionWeightNet2Head(base_ch=32, depth=4, n_res=1, norm="nonorm", act="relu",
+#                                   c_min=0.5, c_max=2.0, c_head_hidden=16).to(device)
+# logging.info('Model: RadarFusionWeightNet2Head, base=32, depth=4, n_res=1, norm="nonorm", act="relu", c_min=0.5, c_max=2.0, c_head_hidden=16')
 
 # ========================================
 # Module: 优化器和损失函数
@@ -46,9 +46,11 @@ logging.info('Model: RadarFusionWeightNet2Head, base=32, depth=4, n_res=1, norm=
 opmizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 logging.info('Optimizer: Adam, lr=1e-4')
 from DLtools import MaskedMSELoss, WeightedMaskedMSELoss, MaskedMSELoss_cor
-loss_func = MaskedMSELoss_cor()
+loss_func = MaskedMSELoss()
+logging.info('Loss: MSE Loss')
+# loss_func = MaskedMSELoss_cor()
+# logging.info('Loss: MSE Loss + correction loss + tv loss')
 # loss_func = WeightedMaskedMSELoss(reduction="mean").to(device)
-logging.info('Loss: MSE Loss + correction loss + tv loss')
 # logging.info(loss_func.edge)
 # logging.info(loss_func.weight)
 

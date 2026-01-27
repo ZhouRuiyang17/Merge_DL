@@ -272,12 +272,12 @@ def train_one_epoch(model, loader, optimizer, loss_func, device):
         if has_invalid:
             print("Warning: 输入数据包含无效值，跳过该批次")
             continue
-        weights, r_hat, logits, c = model(x)                 # r_hat: (B,1,256,256)
+        weights, r_hat, logits = model(x)                 # r_hat: (B,1,256,256) # NOTE: model1和model2需要修改
         # r_hat = r_hat.squeeze(1)                          # -> (B,256,256)
         ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
         ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
-        loss = loss_func(r_hat, gauge_grid, gauge_mask, c=c)   # 你的loss若要求B1HW就别squeeze
+        loss = loss_func(r_hat, gauge_grid, gauge_mask)   # 你的loss若要求B1HW就别squeeze # NOTE: model1和model2需要修改
         loss.backward()
         optimizer.step()
 
@@ -303,12 +303,12 @@ def eval_one_epoch(model, loader, loss_func, device):
         x[:,[0,5,10,15,20]] /= 100.0 # 简单归一化雨量通道, 最小值为0，最大值约为100
         gauge_grid /= 100.0
 
-        weights, r_hat, logits, c = model(x)
+        weights, r_hat, logits = model(x) # NOTE: model1和model2需要修改
         # r_hat = r_hat.squeeze(1)
         ls_pred.append(r_hat[:,0][gauge_mask==1].detach().cpu().numpy())
         ls_true.append(gauge_grid[gauge_mask==1].detach().cpu().numpy())
 
-        loss = loss_func(r_hat, gauge_grid, gauge_mask, c=c)
+        loss = loss_func(r_hat, gauge_grid, gauge_mask) # NOTE: model1和model2需要修改
         bs = x.size(0)
         total_loss += loss.item() * bs
         n += bs
